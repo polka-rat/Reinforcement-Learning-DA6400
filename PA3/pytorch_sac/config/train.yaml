@@ -1,0 +1,118 @@
+defaults:
+    - agent: sac
+
+# env can be "pendulum", "lunarlander" or "reacher"
+env: "pendulum"
+reacher_mode: standard
+
+# this needs to be specified manually
+experiment: test_exp
+
+num_train_steps: 50000
+replay_buffer_capacity: ${num_train_steps}
+
+num_seed_steps: 10000
+
+eval_frequency: 10000
+video_frequency: 50000
+num_eval_episodes: 20
+
+# Heartbeat print every N steps regardless of episode boundaries (useful for long Rc episodes)
+progress_print_frequency: 500
+
+device: cuda
+
+# logger
+log_frequency: 50000
+log_save_tb: false
+
+# video recorder
+save_video: true
+video_dir: ./exp/reacher_pebble/seed_${seed}
+save_checkpoint: true
+checkpoint_path: checkpoint.pt
+load_checkpoint: ""
+
+# seed array - [44, 63, 11, 15, 90, 21, 0, 12, 52, 8, 42, 32, 31, 10, 98]
+seed: 10
+
+# To run multiple seeds sequentially, pass: +run_seeds=[44,63,11,15]
+# If run_seeds is provided, it overrides the single seed above
+run_seeds: []
+
+# Target theta for pendulum control (in radians, not degrees!)
+# 0.0 = bottom (default), 1.57 ≈ 90°, 3.14 ≈ 180° (top)
+# Override with: target_theta=1.57
+target_theta: -1.05
+
+# Reward mode for reacher ('ra', 'rb', 'rc')
+# Override with: reward_mode=ra
+reward_mode: rb
+
+pendulum:
+    target_theta: -1.05
+    max_episode_steps: 1000
+    reward_scale: 1.0
+
+pebble:
+    enabled: true
+    segment_length: 50
+    budget: 2000
+    query_batch_size: 16
+    query_interval: 1000
+    reward_train_steps: 200
+    reward_batch_size: 64
+    relabel_interval: 1000
+    pref_start_step: 10000
+    hidden_dim: 256
+    lr: 0.0003
+    ensemble_size: 3
+    max_segments: 2000
+
+lunarlander:
+    continuous: true
+    max_episode_steps: 1000
+    reward_mode: hover_box
+    hover_bonus: 200.0
+    reward_flip_enabled: true
+    reward_flip_step: 250000
+    reward_flip_bonus: -100.0
+    hover_x_threshold: 0.1
+    hover_y_min: 0.4
+    hover_y_max: 0.6
+    hover_once_per_episode: true
+
+# Reacher environment configuration (easy version from DeepMind Control Suite)
+reacher:
+    # Reward formulation: 'ra', 'rb', or 'rc'
+    # 
+    # Ra (Dense reward): reward = 1 if in_target, else -|target-fingertip| - 0.01*|action|^2
+    #     Episodes: Fixed length T=1000. No early termination. Full reset at episode boundary.
+    #
+    # Rb (Sparse reward): reward = 1 if in_target, else 0
+    #     Episodes: Fixed length T=1000. No early termination. Full reset at episode boundary.
+    #
+    # Rc (Variable length): reward = 0 if in_target, else -1
+    #     Episodes: Variable length. Terminates early if target reached with low velocity.
+    #     - Early termination: Both robot and target reset to new random positions for next episode.
+    #     - Timeout at T=1000: Apply -1 penalty, truncate episode. On next reset:
+    #       Robot arm resets to random position, but TARGET stays in same location.
+    #       Max episode length: 1000 timesteps.
+    reward_mode: rb
+    max_episode_steps: 1000
+    target_distance_threshold: 0.01
+    optimal_policy_eval_episodes: 500
+    optimal_policy_eval_episode_length: 5000
+    # Rc eval only: max steps per eval episode to prevent hanging with an untrained policy.
+    # Training episodes are unaffected — they still run until success with no step cap.
+    eval_max_episode_steps: 5000
+
+# hydra configuration
+hydra:
+    run:
+        dir: ./exp/pendulum_pebble/theta_${target_theta}/seed_${seed}
+    sweep:
+        dir: ./exp/pendulum_pebble/theta_${target_theta}/seed_${seed}
+    job:
+        chdir: false
+    output_subdir: ""
